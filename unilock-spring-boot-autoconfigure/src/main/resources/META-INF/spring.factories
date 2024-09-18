@@ -1,0 +1,7 @@
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+com.xcs.unilock.autoconfigure.UniLockAutoConfiguration,\
+com.xcs.unilock.autoconfigure.etcd.EtcdAutoConfiguration,\
+com.xcs.unilock.autoconfigure.mysql.MySqlAutoConfiguration,\
+com.xcs.unilock.autoconfigure.jedis.JedisAutoConfiguration,\
+com.xcs.unilock.autoconfigure.redisson.RedissonAutoConfiguration,\
+com.xcs.unilock.autoconfigure.zookeeper.ZookeeperAutoConfiguration

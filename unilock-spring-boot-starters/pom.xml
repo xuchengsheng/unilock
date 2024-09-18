@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.xcs.unilock</groupId>
+        <artifactId>unilock</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>unilock-spring-boot-starters</artifactId>
+    <packaging>pom</packaging>
+    <name>UniLock Starters</name>
+    <description>UniLock Starters</description>
+    <url>https://github.com/xuchengsheng/unilock</url>
+
+    <scm>
+        <url>https://github.com/xuchengsheng/unilock</url>
+        <connection>git://github.com/xuchengsheng/unilock.git</connection>
+        <developerConnection>git@github.com:xuchengsheng/unilock.git</developerConnection>
+    </scm>
+
+    <modules>
+        <module>unilock-mysql-spring-boot-starter</module>
+        <module>unilock-jedis-spring-boot-starter</module>
+        <module>unilock-zookeeper-spring-boot-starter</module>
+        <module>unilock-redisson-spring-boot-starter</module>
+        <module>unilock-etcd-spring-boot-starter</module>
+    </modules>
+
+</project>

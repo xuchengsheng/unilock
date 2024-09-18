@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--suppress ALL -->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>com.xcs.unilock</groupId>
+        <artifactId>unilock</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>unilock-bom</artifactId>
+    <packaging>pom</packaging>
+    <name>UniLock BOM</name>
+    <description>Bill of Materials POM (BOM) for the UniLock modules</description>
+    <url>https://github.com/xuchengsheng/unilock</url>
+
+    <scm>
+        <url>https://github.com/xuchengsheng/unilock</url>
+        <connection>git://github.com/xuchengsheng/unilock.git</connection>
+        <developerConnection>git@github.com:xuchengsheng/unilock.git</developerConnection>
+    </scm>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>com.xcs.unilock</groupId>
+                <artifactId>unilock-core</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.xcs.unilock</groupId>
+                <artifactId>unilock-spring-boot-autoconfigure</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.xcs.unilock</groupId>
+                <artifactId>unilock-etcd</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.xcs.unilock</groupId>
+                <artifactId>unilock-mysql</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.xcs.unilock</groupId>
+                <artifactId>unilock-jedis</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.xcs.unilock</groupId>
+                <artifactId>unilock-redisson</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.xcs.unilock</groupId>
+                <artifactId>unilock-zookeeper</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.xcs.unilock</groupId>
+                <artifactId>unilock-etcd-spring-boot-starter</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.xcs.unilock</groupId>
+                <artifactId>unilock-mysql-spring-boot-starter</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.xcs.unilock</groupId>
+                <artifactId>unilock-jedis-spring-boot-starter</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.xcs.unilock</groupId>
+                <artifactId>unilock-redisson-spring-boot-starter</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.xcs.unilock</groupId>
+                <artifactId>unilock-zookeeper-spring-boot-starter</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+</project>
