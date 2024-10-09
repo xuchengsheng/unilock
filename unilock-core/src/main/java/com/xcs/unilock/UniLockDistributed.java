@@ -5,7 +5,7 @@ package com.xcs.unilock;
  *
  * @author xcs
  */
-public interface DistributedLock {
+public interface UniLockDistributed<T> {
 
     /**
      * 尝试在指定的时间内获取锁。如果在超时之前可以获取到锁，则返回true；
@@ -16,21 +16,21 @@ public interface DistributedLock {
      * @param waitTime  尝试获取锁超时时间 (ms)
      * @return 锁的响应
      */
-    boolean tryLock(String lockName, long leaseTime, long waitTime);
+    UniLockResponse<T> tryLock(String lockName, long leaseTime, long waitTime);
 
     /**
      * 释放指定名称的锁。
      *
-     * @param lockName 锁的名称
+     * @param response 锁的响应
      */
-    boolean unlock(String lockName);
+    boolean unlock(UniLockResponse<T> response);
 
     /**
      * 自定义重入锁
      *
      * @return 是否可重入
      */
-    default boolean customReentrant() {
+    default boolean reentrant() {
         return false;
     }
 
@@ -39,7 +39,7 @@ public interface DistributedLock {
      *
      * @return 是否可重入
      */
-    default boolean customRenewal() {
+    default boolean renewal() {
         return false;
     }
 

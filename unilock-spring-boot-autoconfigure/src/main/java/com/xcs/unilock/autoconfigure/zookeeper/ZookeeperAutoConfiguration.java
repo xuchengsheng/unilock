@@ -1,6 +1,6 @@
 package com.xcs.unilock.autoconfigure.zookeeper;
 
-import com.xcs.unilock.zookeeper.ZookeeperDistributedLock;
+import com.xcs.unilock.zookeeper.ZookeeperUniLockDistributed;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.CuratorFrameworkFactory;
 import org.apache.curator.retry.ExponentialBackoffRetry;
@@ -19,14 +19,14 @@ import org.springframework.util.Assert;
  * @author xcs
  */
 @Configuration(proxyBeanMethods = false)
-@ConditionalOnClass({ZookeeperDistributedLock.class, CuratorFramework.class})
+@ConditionalOnClass({ZookeeperUniLockDistributed.class, CuratorFramework.class})
 @EnableConfigurationProperties({ZookeeperLockProperties.class})
 public class ZookeeperAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnProperty(prefix = ZookeeperLockProperties.CONFIG_PREFIX, name = "enabled", havingValue = "true", matchIfMissing = true)
-    public ZookeeperDistributedLock zookeeperDistributedLock(ZookeeperLockProperties properties) {
+    public ZookeeperUniLockDistributed zookeeperDistributedLock(ZookeeperLockProperties properties) {
         Assert.hasText(properties.getConnectString(), "zookeeper connect string must be set.  Use the property: spring.unilock.zookeeper.connectString");
         ExponentialBackoffRetry retryPolicy = new ExponentialBackoffRetry(
                 properties.getOptions().getBaseSleepTimeMs(),
@@ -47,6 +47,6 @@ public class ZookeeperAutoConfiguration {
         if (!properties.getOptions().isUseContainerParentsIfAvailable()) {
             builder.dontUseContainerParents();
         }
-        return new ZookeeperDistributedLock(builder.build());
+        return new ZookeeperUniLockDistributed(builder.build());
     }
 }

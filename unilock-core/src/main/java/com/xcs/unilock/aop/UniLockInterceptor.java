@@ -1,8 +1,8 @@
 package com.xcs.unilock.aop;
 
 
-import com.xcs.unilock.DistributedLock;
-import com.xcs.unilock.annotation.UniLock;
+import com.xcs.unilock.UniLockDistributed;
+import com.xcs.unilock.UniLockResponse;
 import com.xcs.unilock.callback.LockFailCallback;
 import org.aopalliance.intercept.MethodInterceptor;
 import org.aopalliance.intercept.MethodInvocation;
@@ -27,7 +27,7 @@ import java.util.List;
  *
  * @author xcs
  */
-@SuppressWarnings({"rawtypes"})
+@SuppressWarnings({"rawtypes", "unchecked"})
 public class UniLockInterceptor implements MethodInterceptor {
 
     /**
@@ -38,7 +38,7 @@ public class UniLockInterceptor implements MethodInterceptor {
     /**
      * 分布式锁的实例，用于操作锁的获取与释放
      */
-    private final DistributedLock distributedLock;
+    private final UniLockDistributed uniLockDistributed;
 
     /**
      * 表达式解析器，用于解析和评估 Spring EL 表达式
@@ -50,8 +50,8 @@ public class UniLockInterceptor implements MethodInterceptor {
      */
     private final ParameterNameDiscoverer parameterNameDiscoverer = new DefaultParameterNameDiscoverer();
 
-    public UniLockInterceptor(DistributedLock distributedLock) {
-        this.distributedLock = distributedLock;
+    public UniLockInterceptor(UniLockDistributed uniLockDistributed) {
+        this.uniLockDistributed = uniLockDistributed;
     }
 
     @Override
@@ -59,10 +59,10 @@ public class UniLockInterceptor implements MethodInterceptor {
         // 获取被拦截的方法
         Method method = invocation.getMethod();
         // 锁的响应结果
-        List<String> lockNames = new ArrayList<>();
+        List<UniLockResponse<?>> responses = new ArrayList<>();
         try {
             // 获取方法上的所有 @UniLock 注解
-            for (UniLock uniLock : AnnotatedElementUtils.findMergedRepeatableAnnotations(method, UniLock.class)) {
+            for (com.xcs.unilock.annotation.UniLock uniLock : AnnotatedElementUtils.findMergedRepeatableAnnotations(method, com.xcs.unilock.annotation.UniLock.class)) {
                 // 解析 condition 条件表达式
                 String condition = uniLock.condition();
                 // 如果条件表达式不为空且评估结果为 false，则跳过锁的获取，直接执行方法
@@ -71,27 +71,29 @@ public class UniLockInterceptor implements MethodInterceptor {
                 }
                 // 获取锁的名称，若未指定则自动生成
                 String lockName = getLockName(uniLock.name(), method, invocation.getArguments());
+                UniLockResponse<?> response = this.uniLockDistributed.tryLock(lockName, uniLock.leaseTime(), uniLock.waitTime());
                 // 如果获取锁失败
-                if (!distributedLock.tryLock(lockName, uniLock.leaseTime(), uniLock.waitTime())) {
+                if (response == null) {
                     // 通过反射创建实例
                     LockFailCallback callback = BeanUtils.instantiateClass(uniLock.onFail());
                     // 执行回调方法
                     Object callbackResult = callback.onFail(lockName, invocation);
                     // 检查回调的返回值类型是否与被拦截方法的返回值类型一致
-                    if (!method.getReturnType().isInstance(callbackResult)) {
-                        throw new IllegalStateException(String.format("Lock failure callback return type mismatch. Expected: %s, but got: %s from callback.", method.getReturnType().getName(), callbackResult != null ? callbackResult.getClass().getName() : "null"));
+                    if (callbackResult != null && !method.getReturnType().isInstance(callbackResult)) {
+                        throw new IllegalStateException(String.format("Lock failure callback return type mismatch. Expected: %s, but got: %s from callback.",
+                                method.getReturnType().getName(), callbackResult.getClass().getName()));
                     }
                     return callbackResult;
                 }
-                lockNames.add(lockName);
+                responses.add(response);
             }
             // 成功获取锁后，执行目标方法
             return invocation.proceed();
         } finally {
             // 逐一释放所有锁
-            for (String lockName : lockNames) {
-                if (!distributedLock.unlock(lockName)) {
-                    LOGGER.warn("Failed to unlock: {}", lockName);
+            for (UniLockResponse<?> response : responses) {
+                if (!uniLockDistributed.unlock(response)) {
+                    LOGGER.warn("Failed to unlock: {}", response.getLockName());
                 }
             }
         }

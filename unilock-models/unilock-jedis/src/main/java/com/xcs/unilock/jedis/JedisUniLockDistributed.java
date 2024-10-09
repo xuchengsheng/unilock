@@ -1,6 +1,6 @@
 package com.xcs.unilock.jedis;
 
-import com.xcs.unilock.AbstractDistributedLock;
+import com.xcs.unilock.AbstractUniLockDistributed;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import redis.clients.jedis.UnifiedJedis;
@@ -8,6 +8,8 @@ import redis.clients.jedis.params.SetParams;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -17,12 +19,12 @@ import java.util.concurrent.TimeUnit;
  * @author xcs
  */
 @SuppressWarnings({"BusyWait", "RedundantSuppression"})
-public class JedisDistributedLock extends AbstractDistributedLock {
+public class JedisUniLockDistributed extends AbstractUniLockDistributed<String> {
 
     /**
      * 日志记录器，用于捕获和记录错误信息。
      */
-    private static final Logger LOGGER = LoggerFactory.getLogger(JedisDistributedLock.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(JedisUniLockDistributed.class);
 
     /**
      * 锁成功获取的标识
@@ -49,32 +51,43 @@ public class JedisDistributedLock extends AbstractDistributedLock {
      */
     private final UnifiedJedis jedis;
 
-    public JedisDistributedLock(UnifiedJedis jedis) {
+    /**
+     * 线程本地变量，存储每个线程的 InterProcessMutex 锁对象。
+     * 通过线程本地变量，确保每个线程持有自己的锁实例。
+     */
+    private final ThreadLocal<Map<String, String>> jedisThreadLocalLocks = ThreadLocal.withInitial(ConcurrentHashMap::new);
+
+    public JedisUniLockDistributed(UnifiedJedis jedis) {
         this.jedis = jedis;
     }
 
     @Override
-    public boolean customReentrant() {
+    public boolean reentrant() {
         return true;
     }
 
     @Override
-    public boolean customRenewal() {
+    public boolean renewal() {
         return true;
     }
 
     @Override
-    public boolean doLock(String lockName, String lockValue, long leaseTime, long waitTime) {
+    public String doLock(String lockName, String lockValue, long leaseTime, long waitTime) {
         // 设置NX和过期时间
         SetParams setParams = new SetParams().nx().px(TimeUnit.MILLISECONDS.toMillis(leaseTime));
         // 尝试获取锁 SET myLock myValue NX PX 5000
         String result = jedis.set(lockName, lockValue, setParams);
-        // 超时未获取到锁
-        return LOCK_SUCCESS.equals(result);
+        // 如果成功获取锁，则将锁信息存储到线程本地变量中
+        if (LOCK_SUCCESS.equals(result)) {
+            jedisThreadLocalLocks.get().put(lockName, lockValue);
+            return LOCK_SUCCESS;
+        }
+        // 未获取到锁
+        return null;
     }
 
     @Override
-    public void doUnlock(String lockName, String lockValue) {
+    public void doUnlock(String lockName, String lockValue, String instance) {
         // 执行 Lua 脚本解锁
         Object result = jedis.eval(UNLOCK_SCRIPT, Collections.singletonList(lockName), Collections.singletonList(lockValue));
         // 解锁成功

@@ -1,6 +1,6 @@
 package com.xcs.unilock.autoconfigure.redisson;
 
-import com.xcs.unilock.redisson.RedissonDistributedLock;
+import com.xcs.unilock.redisson.RedissonUniLockDistributed;
 import org.redisson.Redisson;
 import org.redisson.api.RedissonClient;
 import org.redisson.config.Config;
@@ -25,7 +25,7 @@ import java.util.Optional;
  * @author xcs
  */
 @Configuration(proxyBeanMethods = false)
-@ConditionalOnClass({RedissonDistributedLock.class, RedissonClient.class})
+@ConditionalOnClass({RedissonUniLockDistributed.class, RedissonClient.class})
 @EnableConfigurationProperties({RedissonLockProperties.class})
 public class RedissonAutoConfiguration {
 
@@ -46,11 +46,11 @@ public class RedissonAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnProperty(prefix = RedissonLockProperties.CONFIG_PREFIX, name = "enabled", havingValue = "true", matchIfMissing = true)
-    public RedissonDistributedLock redissonDistributedLock(RedissonLockProperties properties) {
+    public RedissonUniLockDistributed redissonDistributedLock(RedissonLockProperties properties) {
         Config config = Optional.ofNullable(getSentinelConfig(properties))
                 .orElse(Optional.ofNullable(getClusterConfig(properties))
                         .orElse(getStandaloneConfig(properties)));
-        return new RedissonDistributedLock(Redisson.create(config));
+        return new RedissonUniLockDistributed(Redisson.create(config));
     }
 
     /**

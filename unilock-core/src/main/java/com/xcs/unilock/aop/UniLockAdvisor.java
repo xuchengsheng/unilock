@@ -1,7 +1,6 @@
 package com.xcs.unilock.aop;
 
-import com.xcs.unilock.DistributedLock;
-import com.xcs.unilock.annotation.UniLock;
+import com.xcs.unilock.UniLockDistributed;
 import com.xcs.unilock.annotation.UniLocks;
 import org.aopalliance.aop.Advice;
 import org.springframework.aop.Pointcut;
@@ -16,7 +15,7 @@ import org.springframework.aop.support.annotation.AnnotationMatchingPointcut;
  *
  * @author xcs
  */
-@SuppressWarnings({"NullableProblems"})
+@SuppressWarnings({"NullableProblems", "rawtypes"})
 public class UniLockAdvisor extends AbstractPointcutAdvisor {
 
     /**
@@ -29,15 +28,15 @@ public class UniLockAdvisor extends AbstractPointcutAdvisor {
      */
     private final UniLockInterceptor interceptor;
 
-    public UniLockAdvisor(DistributedLock distributedLock) {
+    public UniLockAdvisor(UniLockDistributed uniLockDistributed) {
         // 创建针对 @UniLock 注解的切入点
-        Pointcut uniLockPointcut = new AnnotationMatchingPointcut(null, UniLock.class);
+        Pointcut uniLockPointcut = new AnnotationMatchingPointcut(null, com.xcs.unilock.annotation.UniLock.class);
         // 创建针对 @UniLocks 注解的切入点
         Pointcut uniLocksPointcut = new AnnotationMatchingPointcut(null, UniLocks.class);
         // 组合两个切入点，支持同时匹配 @UniLock 和 @UniLocks 注解
         this.pointcut = new ComposablePointcut(uniLockPointcut).union(uniLocksPointcut);
         // 初始化拦截器
-        this.interceptor = new UniLockInterceptor(distributedLock);
+        this.interceptor = new UniLockInterceptor(uniLockDistributed);
     }
 
     @Override

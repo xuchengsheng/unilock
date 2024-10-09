@@ -1,6 +1,6 @@
 package com.xcs.unilock.zookeeper;
 
-import com.xcs.unilock.AbstractDistributedLock;
+import com.xcs.unilock.AbstractUniLockDistributed;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.locks.InterProcessMutex;
 
@@ -16,7 +16,7 @@ import java.util.concurrent.TimeUnit;
  *
  * @author xcs
  */
-public class ZookeeperDistributedLock extends AbstractDistributedLock {
+public class ZookeeperUniLockDistributed extends AbstractUniLockDistributed<InterProcessMutex> {
 
     /**
      * 锁的根路径，用于在 ZooKeeper 中存储锁节点。
@@ -34,12 +34,12 @@ public class ZookeeperDistributedLock extends AbstractDistributedLock {
      */
     private final ThreadLocal<Map<String, InterProcessMutex>> zkThreadLocalLocks = ThreadLocal.withInitial(ConcurrentHashMap::new);
 
-    public ZookeeperDistributedLock(CuratorFramework curatorFramework) {
+    public ZookeeperUniLockDistributed(CuratorFramework curatorFramework) {
         this.curatorFramework = curatorFramework;
     }
 
     @Override
-    public boolean doLock(String lockName, String lockValue, long leaseTime, long waitTime) throws Exception {
+    public InterProcessMutex doLock(String lockName, String lockValue, long leaseTime, long waitTime) throws Exception {
         // 创建锁路径
         String lockPath = LOCK_ROOT_PATH + "/" + lockName;
         // 获取当前线程的锁集合
@@ -50,23 +50,19 @@ public class ZookeeperDistributedLock extends AbstractDistributedLock {
         if (mutex.acquire(waitTime, TimeUnit.MILLISECONDS)) {
             // 将锁对象存储到线程本地变量中
             locks.put(lockName, mutex);
-            return true;
+            return mutex;
         }
-        return false;
+        return null;
     }
 
     @Override
-    public void doUnlock(String lockName, String lockValue) throws Exception {
-        // 获取当前线程的锁集合
-        Map<String, InterProcessMutex> mutexMap = zkThreadLocalLocks.get();
-        // 获取当前线程持有的锁对象
-        InterProcessMutex mutex = mutexMap.get(lockName);
+    public void doUnlock(String lockName, String lockValue, InterProcessMutex mutex) throws Exception {
         if (mutex != null) {
             // 释放锁
             mutex.release();
             // 如果当前进程不再持有该锁，则从线程本地变量中移除该锁
             if (!mutex.isAcquiredInThisProcess()) {
-                mutexMap.remove(lockName);
+                zkThreadLocalLocks.get().remove(lockName);
             }
         }
     }

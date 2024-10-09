@@ -6,7 +6,7 @@ package com.xcs.unilock.exception;
  *
  * @author xcs
  */
-public class LockAcquisitionFailedException extends RuntimeException {
+public class LockFailedException extends RuntimeException {
 
     /**
      * 构造函数，接受锁名称和方法信息作为异常消息。
@@ -14,7 +14,7 @@ public class LockAcquisitionFailedException extends RuntimeException {
      * @param lockName   锁的名称。
      * @param methodName 方法的名称。
      */
-    public LockAcquisitionFailedException(String lockName, String methodName) {
+    public LockFailedException(String lockName, String methodName) {
         super("Failed to acquire lock. Lock name: " + lockName + ", Method name: " + methodName);
     }
 }

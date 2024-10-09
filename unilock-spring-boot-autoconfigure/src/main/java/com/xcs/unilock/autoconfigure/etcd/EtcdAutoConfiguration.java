@@ -1,6 +1,6 @@
 package com.xcs.unilock.autoconfigure.etcd;
 
-import com.xcs.unilock.etcd.EtcdDistributedLock;
+import com.xcs.unilock.etcd.EtcdUniLockDistributed;
 import io.etcd.jetcd.ByteSequence;
 import io.etcd.jetcd.Client;
 import io.etcd.jetcd.ClientBuilder;
@@ -23,7 +23,7 @@ import java.time.Duration;
  * @author xcs
  */
 @Configuration(proxyBeanMethods = false)
-@ConditionalOnClass({EtcdDistributedLock.class, Client.class})
+@ConditionalOnClass({EtcdUniLockDistributed.class, Client.class})
 @EnableConfigurationProperties({EtcdLockProperties.class})
 public class EtcdAutoConfiguration {
 
@@ -31,7 +31,7 @@ public class EtcdAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnProperty(prefix = EtcdLockProperties.CONFIG_PREFIX, name = "enabled", havingValue = "true", matchIfMissing = true)
-    public EtcdDistributedLock etcdDistributedLock(EtcdLockProperties properties) {
+    public EtcdUniLockDistributed etcdDistributedLock(EtcdLockProperties properties) {
         Assert.hasText(properties.getEndpoints(), "etcd endpoints must be set.  Use the property: spring.unilock.redisson.endpoints");
         EtcdOptions options = properties.getOptions();
         ClientBuilder clientBuilder = Client.builder().endpoints(properties.getEndpoints().split(","));
@@ -64,6 +64,6 @@ public class EtcdAutoConfiguration {
                 .keepaliveTimeout(Duration.ofSeconds(options.getKeepaliveTimeout()))
                 .keepaliveWithoutCalls(options.isKeepaliveWithoutCalls())
                 .waitForReady(options.isWaitForReady());
-        return new EtcdDistributedLock(clientBuilder.build());
+        return new EtcdUniLockDistributed(clientBuilder.build());
     }
 }

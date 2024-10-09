@@ -1,6 +1,6 @@
 package com.xcs.unilock.autoconfigure.jedis;
 
-import com.xcs.unilock.jedis.JedisDistributedLock;
+import com.xcs.unilock.jedis.JedisUniLockDistributed;
 import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -23,7 +23,7 @@ import java.util.stream.Collectors;
  * @author xcs
  */
 @Configuration(proxyBeanMethods = false)
-@ConditionalOnClass({JedisDistributedLock.class, JedisPool.class})
+@ConditionalOnClass({JedisUniLockDistributed.class, JedisPool.class})
 @EnableConfigurationProperties({JedisLockProperties.class})
 public class JedisAutoConfiguration {
 
@@ -37,11 +37,11 @@ public class JedisAutoConfiguration {
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnProperty(prefix = JedisLockProperties.CONFIG_PREFIX, name = "enabled", havingValue = "true", matchIfMissing = true)
-    public JedisDistributedLock jedisDistributedLock(JedisLockProperties properties) {
+    public JedisUniLockDistributed jedisDistributedLock(JedisLockProperties properties) {
         UnifiedJedis jedis = Optional.ofNullable(getSentinelConfig(properties))
                 .orElse(Optional.ofNullable(getClusterConfig(properties))
                         .orElse(getStandaloneConfig(properties)));
-        return new JedisDistributedLock(jedis);
+        return new JedisUniLockDistributed(jedis);
     }
 
     /**

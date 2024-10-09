@@ -1,7 +1,7 @@
 package com.xcs.unilock.mysql;
 
 import com.alibaba.druid.pool.DruidDataSource;
-import com.xcs.unilock.AbstractDistributedLock;
+import com.xcs.unilock.AbstractUniLockDistributed;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,12 +19,12 @@ import java.util.concurrent.TimeUnit;
  * @author xcs
  */
 @SuppressWarnings({"SqlNoDataSourceInspection", "SqlResolve", "BusyWait", "deprecation", "RedundantSuppression"})
-public class MySqlDistributedLock extends AbstractDistributedLock {
+public class MySqlUniLockDistributed extends AbstractUniLockDistributed<String> {
 
     /**
      * 日志记录器，用于捕获和记录错误信息。
      */
-    private static final Logger LOGGER = LoggerFactory.getLogger(MySqlDistributedLock.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(MySqlUniLockDistributed.class);
 
     /**
      * SQL 语句：创建表结构
@@ -72,24 +72,24 @@ public class MySqlDistributedLock extends AbstractDistributedLock {
      *
      * @param dataSource 数据源
      */
-    public MySqlDistributedLock(DruidDataSource dataSource) {
+    public MySqlUniLockDistributed(DruidDataSource dataSource) {
         this.dataSource = dataSource;
         this.nodeId = getNodeId();
         createTableIfNotExists();
     }
 
     @Override
-    public boolean customReentrant() {
+    public boolean reentrant() {
         return true;
     }
 
     @Override
-    public boolean customRenewal() {
+    public boolean renewal() {
         return true;
     }
 
     @Override
-    public boolean doLock(String lockName, String lockValue, long leaseTime, long waitTime) throws Exception {
+    public String doLock(String lockName, String lockValue, long leaseTime, long waitTime) throws Exception {
         try (Connection connection = dataSource.getConnection()) {
             PreparedStatement stmt = connection.prepareStatement(TRY_SELECT_SQL);
             stmt.setString(1, lockName);
@@ -109,13 +109,13 @@ public class MySqlDistributedLock extends AbstractDistributedLock {
                     }
                 }
                 // 如果可以获取锁，则插入一条记录
-                return canMysqlLock && insertLock(connection, lockName, leaseTime);
+                return String.valueOf(canMysqlLock && insertLock(connection, lockName, leaseTime));
             }
         }
     }
 
     @Override
-    public void doUnlock(String lockName, String lockValue) throws Exception {
+    public void doUnlock(String lockName, String lockValue, String instance) throws Exception {
         // 从数据库中删除锁记录
         try (Connection connection = dataSource.getConnection()) {
             PreparedStatement stmt = connection.prepareStatement(UN_LOCK_DELETE_SQL);

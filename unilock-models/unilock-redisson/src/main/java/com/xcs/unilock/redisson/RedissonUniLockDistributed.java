@@ -1,6 +1,6 @@
 package com.xcs.unilock.redisson;
 
-import com.xcs.unilock.AbstractDistributedLock;
+import com.xcs.unilock.AbstractUniLockDistributed;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.slf4j.Logger;
@@ -16,12 +16,12 @@ import java.util.concurrent.TimeUnit;
  *
  * @author xcs
  */
-public class RedissonDistributedLock extends AbstractDistributedLock {
+public class RedissonUniLockDistributed extends AbstractUniLockDistributed<RLock> {
 
     /**
      * 日志记录器，用于捕获和记录错误信息。
      */
-    private static final Logger LOGGER = LoggerFactory.getLogger(RedissonDistributedLock.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(RedissonUniLockDistributed.class);
 
     /**
      * Redisson 客户端实例，用于与 Redis 进行交互。
@@ -33,32 +33,34 @@ public class RedissonDistributedLock extends AbstractDistributedLock {
      *
      * @param redissonClient Redisson 客户端实例
      */
-    public RedissonDistributedLock(RedissonClient redissonClient) {
+    public RedissonUniLockDistributed(RedissonClient redissonClient) {
         this.redissonClient = redissonClient;
     }
 
     @Override
-    public boolean doLock(String lockName, String lockValue, long leaseTime, long waitTime) throws Exception {
+    public RLock doLock(String lockName, String lockValue, long leaseTime, long waitTime) throws Exception {
         // 获取 RLock 对象
-        RLock lock = redissonClient.getLock(lockName);
+        RLock rLock = redissonClient.getLock(lockName);
         // 尝试获取锁，并设置锁的持有时间和超时时间
-        boolean locked = lock.tryLock(waitTime, leaseTime, TimeUnit.MILLISECONDS);
-        // 如果获取锁成功，并且设置了过期时间，则调用 scheduleExpirationRenewal 方法
-        if (locked && leaseTime > 0) {
-            overrideParentInternalLockLeaseTime(lock, TimeUnit.MILLISECONDS.toMillis(leaseTime));
-            invokeScheduleExpirationRenewal(lock);
+        boolean locked = rLock.tryLock(waitTime, leaseTime, TimeUnit.MILLISECONDS);
+        // 如果获取锁成功
+        if (locked) {
+            // 设置了过期时间，则调用 scheduleExpirationRenewal 方法
+            if (leaseTime > 0) {
+                overrideParentInternalLockLeaseTime(rLock, TimeUnit.MILLISECONDS.toMillis(leaseTime));
+                invokeScheduleExpirationRenewal(rLock);
+            }
+            return rLock;
         }
         // 返回锁获取结果
-        return locked;
+        return null;
     }
 
     @Override
-    public void doUnlock(String lockName, String lockValue) {
-        // 获取 RLock 对象
-        RLock lock = redissonClient.getLock(lockName);
+    public void doUnlock(String lockName, String lockValue, RLock rLock) {
         // 仅当当前线程持有锁时，释放锁
-        if (lock.isHeldByCurrentThread()) {
-            lock.unlock();
+        if (rLock.isHeldByCurrentThread()) {
+            rLock.unlock();
         }
     }
 

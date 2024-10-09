@@ -2,7 +2,7 @@ package com.xcs.unilock.autoconfigure.mysql;
 
 import com.alibaba.druid.pool.DruidDataSource;
 import com.mysql.cj.jdbc.Driver;
-import com.xcs.unilock.mysql.MySqlDistributedLock;
+import com.xcs.unilock.mysql.MySqlUniLockDistributed;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -21,14 +21,14 @@ import org.springframework.util.Assert;
  * @author xcs
  */
 @Configuration(proxyBeanMethods = false)
-@ConditionalOnClass({MySqlDistributedLock.class, DruidDataSource.class, Driver.class})
+@ConditionalOnClass({MySqlUniLockDistributed.class, DruidDataSource.class, Driver.class})
 @EnableConfigurationProperties({MySqlLockProperties.class})
 public class MySqlAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
     @ConditionalOnProperty(prefix = MySqlLockProperties.CONFIG_PREFIX, name = "enabled", havingValue = "true", matchIfMissing = true)
-    public MySqlDistributedLock mySqlDistributedLock(MySqlLockProperties properties) {
+    public MySqlUniLockDistributed mySqlDistributedLock(MySqlLockProperties properties) {
         Assert.hasText(properties.getUrl(), "mysql url must be set.  Use the property: spring.unilock.mysql.url");
         Assert.hasText(properties.getUsername(), "mysql username must be set.  Use the property: spring.unilock.mysql.username");
         Assert.hasText(properties.getPassword(), "mysql password must be set.  Use the property: spring.unilock.mysql.password");
@@ -42,6 +42,6 @@ public class MySqlAutoConfiguration {
         dataSource.setMaxActive(properties.getOptions().getMaxActive());
         dataSource.setMinIdle(properties.getOptions().getMinIdle());
         dataSource.setMaxWait(properties.getOptions().getMaxWait());
-        return new MySqlDistributedLock(dataSource);
+        return new MySqlUniLockDistributed(dataSource);
     }
 }

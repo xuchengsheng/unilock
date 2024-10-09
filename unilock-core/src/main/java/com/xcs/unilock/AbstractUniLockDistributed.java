@@ -1,5 +1,6 @@
 package com.xcs.unilock;
 
+import lombok.Data;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -15,19 +16,19 @@ import java.util.concurrent.atomic.AtomicInteger;
  *
  * @author xcs
  */
-public abstract class AbstractDistributedLock implements DistributedLock {
+public abstract class AbstractUniLockDistributed<T> implements UniLockDistributed<T> {
 
     /**
      * 日志记录器，用于捕获和记录错误信息。
      */
-    private static final Logger LOGGER = LoggerFactory.getLogger(AbstractDistributedLock.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(AbstractUniLockDistributed.class);
 
     /**
      * 线程本地变量，存储每个线程持有的锁及其持有计数。
      *
      * <p>每个线程的锁上下文以锁名称为键，持有计数的原子整数为值。</p>
      */
-    private final ThreadLocal<Map<String, AtomicInteger>> lockCountHolder = ThreadLocal.withInitial(ConcurrentHashMap::new);
+    private final ThreadLocal<Map<String, UniLockHolder<T>>> lockCountHolder = ThreadLocal.withInitial(ConcurrentHashMap::new);
 
     /**
      * 定时调度线程池，用于定期延长锁的过期时间。
@@ -55,31 +56,31 @@ public abstract class AbstractDistributedLock implements DistributedLock {
      * @return 如果成功获取锁，则返回 {@code true}；否则返回 {@code false}
      * @throws Exception 在获取锁过程中可能抛出的异常
      */
-    public abstract boolean doLock(String lockName, String lockValue, long leaseTime, long waitTime) throws Exception;
+    public abstract T doLock(String lockName, String lockValue, long leaseTime, long waitTime) throws Exception;
 
     /**
      * 执行锁的释放操作。
      *
      * <p>该方法由具体的分布式锁实现提供，执行释放锁的具体逻辑。</p>
      *
-     * @param lockName  锁的名称
-     * @param lockValue 锁的值
+     * @param lockName 锁的名称
      * @throws Exception 在释放锁过程中可能抛出的异常
      */
-    public abstract void doUnlock(String lockName, String lockValue) throws Exception;
+    public abstract void doUnlock(String lockName, String lockValue, T instance) throws Exception;
 
     @Override
-    public boolean tryLock(String lockName, long leaseTime, long waitTime) {
-        boolean customReentrant = customReentrant();
+    public UniLockResponse<T> tryLock(String lockName, long leaseTime, long waitTime) {
+        boolean customReentrant = reentrant();
         // 自定义重入锁
         if (customReentrant) {
-            Map<String, AtomicInteger> locks = lockCountHolder.get();
+            Map<String, UniLockHolder<T>> locks = lockCountHolder.get();
             // 如果当前线程已经持有该锁，则直接返回成功响应
             if (locks.containsKey(lockName)) {
+                UniLockHolder<T> holder = locks.get(lockName);
                 // 当前线程已经持有该锁，计数器加1
-                locks.get(lockName).incrementAndGet();
+                holder.getLockCount().incrementAndGet();
                 // 返回表示锁已经成功获取的响应对象
-                return true;
+                return holder.getResponse();
             }
         }
         // 将超时时间转换为毫秒
@@ -92,16 +93,18 @@ public abstract class AbstractDistributedLock implements DistributedLock {
         do {
             try {
                 // 执行锁的获取
-                if (doLock(lockName, lockValue, leaseTime, waitTime)) {
+                T t = doLock(lockName, lockValue, leaseTime, waitTime);
+                if (t != null) {
+                    UniLockResponse<T> response = new UniLockResponse<>(lockName, lockValue, t);
                     // 则将锁上下文存储到当前线程的本地变量中
                     if (customReentrant) {
-                        lockCountHolder.get().put(lockName, new AtomicInteger(1));
+                        lockCountHolder.get().put(lockName, new UniLockHolder<>(response));
                     }
                     // 如果支持锁续期，则启动一个定时任务来延长锁的过期时间
-                    if (customRenewal()) {
+                    if (renewal()) {
                         scheduleExpirationRenewal(lockName, lockValue, leaseTime);
                     }
-                    return true;
+                    return response;
                 }
                 TimeUnit.MILLISECONDS.sleep(100);
             } catch (Exception e) {
@@ -109,24 +112,24 @@ public abstract class AbstractDistributedLock implements DistributedLock {
             }
         } while (System.currentTimeMillis() - startTime < timeoutMillis);
         // 获取锁失败
-        return false;
+        return null;
     }
 
     @Override
-    public boolean unlock(String lockName) {
-        if (customReentrant()) {
+    public boolean unlock(UniLockResponse<T> response) {
+        if (reentrant()) {
             // 获取当前线程持有的锁
-            Map<String, AtomicInteger> locks = lockCountHolder.get();
+            Map<String, UniLockHolder<T>> locks = lockCountHolder.get();
             // 当前线程没有持有该锁，抛出异常
-            if (!locks.containsKey(lockName)) {
-                throw new IllegalMonitorStateException("Current thread does not hold the lock: " + lockName);
+            if (!locks.containsKey(response.getLockName())) {
+                throw new IllegalMonitorStateException("Current thread does not hold the lock: " + response.getLockName());
             }
             // 减少持有锁的计数器
-            int holdCount = locks.get(lockName).decrementAndGet();
+            int holdCount = locks.get(response.getLockName()).getLockCount().decrementAndGet();
             // 如果计数器变为 0，表示当前线程已经完全释放了锁
             if (holdCount == 0) {
                 // 锁完全释放，从线程本地变量中移除
-                locks.remove(lockName);
+                locks.remove(response.getLockName());
             } else {
                 return true;
             }
@@ -134,14 +137,14 @@ public abstract class AbstractDistributedLock implements DistributedLock {
         // 执行锁的释放
         try {
             // 如果支持锁续期，则取消定时任务
-            if (customRenewal()) {
+            if (renewal()) {
                 // 取消定时任务
-                ScheduledFuture<?> task = lockRenewalTasks.remove(lockName);
+                ScheduledFuture<?> task = lockRenewalTasks.remove(response.getLockName());
                 if (task != null) {
                     task.cancel(false);
                 }
             }
-            doUnlock(lockName, "");
+            doUnlock(response.getLockName(), response.getLockValue(), response.getInstance());
             return true;
         } catch (Exception e) {
             return false;
@@ -164,5 +167,15 @@ public abstract class AbstractDistributedLock implements DistributedLock {
         ScheduledFuture<?> scheduledFuture = scheduler.scheduleAtFixedRate(() -> doRenewal(lockName, lockValue, leaseTime), delay, delay, TimeUnit.MILLISECONDS);
         // 将定时任务存储到映射中，以便在锁释放时可以取消
         lockRenewalTasks.put(lockName, scheduledFuture);
+    }
+
+    @Data
+    private static class UniLockHolder<T> {
+        private AtomicInteger lockCount = new AtomicInteger(1);
+        private UniLockResponse<T> response;
+
+        public UniLockHolder(UniLockResponse<T> response) {
+            this.response = response;
+        }
     }
 }
